@@ -1,0 +1,21 @@
+# Node
+node_modules/
+backend/gateway/node_modules/
+
+# Entornos Python
+venv/
+.venv/
+backend/recommender/.venv/
+__pycache__/
+*.pyc
+
+# Entornos / sistemas
+.DS_Store
+Thumbs.db
+
+# Config sensible
+.env
+
+# Datos persistentes de Docker (si los tuvieras como volumen local)
+pg_data/
+es_data/

@@ -1,0 +1,5 @@
+fastapi
+uvicorn[standard]
+pg8000
+httpx
+python-dotenv

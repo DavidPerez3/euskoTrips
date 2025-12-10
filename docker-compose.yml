@@ -1,0 +1,93 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: et_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-euskotrips}
+      POSTGRES_USER: ${POSTGRES_USER:-eusko}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eusko_pwd}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./backend/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eusko} -d ${POSTGRES_DB:-euskotrips}"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.3
+    container_name: et_elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  recommender:
+    build:
+      context: ./backend/recommender
+      dockerfile: Dockerfile
+    container_name: et_recommender
+    environment:
+      ELASTIC_URL: http://elasticsearch:9200
+      DATABASE_URL: postgresql+psycopg://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB
+    depends_on:
+      postgres:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  gateway:
+    build:
+      context: ./backend/gateway
+      dockerfile: Dockerfile
+    container_name: et_gateway
+    depends_on:
+      - postgres
+      - elasticsearch
+      - recommender
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      ELASTIC_URL: http://elasticsearch:9200
+      RECOMMENDER_URL: http://recommender:8000
+      DATABASE_URL: postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB
+      NODE_ENV: development
+      JWT_SECRET: ${JWT_SECRET:-devsecret}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+      GITHUB_REDIRECT_URI: ${GITHUB_REDIRECT_URI:-http://localhost:3000/auth/github/callback}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:3000}
+    volumes:
+      - ./frontend:/usr/src/app/public:ro
+  
+  data_pipeline:
+    build:
+      context: ./backend/data_pipeline
+      dockerfile: Dockerfile
+    container_name: et_data_pipeline
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      ELASTIC_URL: http://elasticsearch:9200
+    restart: "no"
+
+volumes:
+  pg_data:
+  es_data:

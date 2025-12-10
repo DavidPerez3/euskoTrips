@@ -1,0 +1,17 @@
+{
+  "name": "eusko-gateway",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/app.js",
+  "license": "MIT",
+  "scripts": { "start": "node src/app.js" },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "morgan": "^1.10.0",
+    "node-fetch": "^3.3.2",
+    "pg": "^8.13.1",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2"
+  }
+}

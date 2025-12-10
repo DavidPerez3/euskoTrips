@@ -1,0 +1,1421 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>EuskoTrips – Plataforma inteligente de descubrimiento turístico</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+
+    <!-- Leaflet para el mapa de detalle -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              etBg: "#b9c0ff",
+              etPrimary: "#6366f1",
+              etPrimarySoft: "#e0e7ff",
+              etDark: "#111827",
+              etAccent: "#facc15",
+            },
+            boxShadow: {
+              et: "0 18px 45px rgba(15,23,42,0.25)",
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+  <body
+    class="min-h-screen bg-gradient-to-br from-etBg via-indigo-300 to-indigo-400 flex items-center justify-center px-4 py-8"
+  >
+    <div
+      class="max-w-6xl w-full bg-slate-50 rounded-3xl shadow-et overflow-hidden relative"
+    >
+      <!-- Top navbar -->
+      <nav
+        class="w-full flex items-center justify-between px-4 sm:px-6 pt-4 pb-3 md:px-8"
+      >
+        <!-- Logo / marca -->
+        <div class="flex items-center gap-2">
+          <div
+            class="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md"
+          >
+            ✈️
+          </div>
+          <span class="text-sm font-semibold text-indigo-700 tracking-wide">
+            EuskoTrips
+          </span>
+        </div>
+
+        <!-- Navegación principal -->
+        <div
+          class="hidden md:flex items-center gap-2 text-xs md:text-sm font-medium bg-white/70 backdrop-blur border border-slate-100 rounded-full px-2 py-1 shadow-sm"
+        >
+          <button
+            id="nav-search"
+            class="px-3 py-1.5 rounded-full border border-transparent bg-white/60 text-slate-600 hover:bg-white shadow-sm transition flex items-center gap-1"
+            title="Buscar destinos"
+          >
+            <span>🔎</span>
+            <span>Buscar</span>
+          </button>
+
+          <button
+            id="nav-favs"
+            class="px-3 py-1.5 rounded-full border border-transparent bg-white/60 text-slate-600 hover:bg-white shadow-sm transition flex items-center gap-1"
+            title="Mis favoritos"
+          >
+            <span>❤️</span>
+            <span>Favoritos</span>
+          </button>
+
+          <button
+            id="nav-recs"
+            class="px-3 py-1.5 rounded-full border border-transparent bg-white/60 text-slate-600 hover:bg-white shadow-sm transition flex items-center gap-1"
+            title="Recomendador"
+          >
+            <span>🧭</span>
+            <span>Recomendador</span>
+          </button>
+        </div>
+
+        <!-- Zona auth -->
+        <div id="auth-nav" class="flex items-center gap-3 relative">
+          <!-- Botón entrar (sin sesión) -->
+          <button
+            type="button"
+            id="btn-open-auth"
+            class="px-3 py-1.5 rounded-full bg-indigo-600 text-white text-xs font-semibold shadow-sm hover:bg-indigo-700 transition"
+          >
+            Entrar
+          </button>
+
+          <!-- Usuario logueado (chip) -->
+          <div
+            id="auth-user-nav"
+            class="hidden items-center gap-2 text-xs text-slate-700 relative"
+          >
+            <button
+              id="user-chip"
+              type="button"
+              class="flex items-center gap-2 bg-white/90 border border-slate-200 px-2.5 py-1.5 rounded-full shadow-sm hover:shadow-md transition"
+              title="Cuenta"
+            >
+              <div
+                class="w-7 h-7 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[11px] font-bold"
+              >
+                <span id="user-initial">U</span>
+              </div>
+              <span
+                id="user-short-name"
+                class="hidden sm:inline text-[11px] font-medium text-slate-700"
+              ></span>
+              <div class="text-slate-400 text-[10px] ml-0.5">▾</div>
+            </button>
+
+            <div
+              id="user-menu"
+              class="hidden absolute right-0 top-10 w-48 bg-white border border-slate-100 rounded-xl shadow-lg p-2 text-xs z-50"
+            >
+              <div class="px-2.5 py-2 border-b border-slate-100 mb-1.5">
+                <p class="text-[11px] text-slate-400">Sesión iniciada</p>
+                <p
+                  class="text-[12px] font-semibold text-slate-800 truncate"
+                  id="auth-username"
+                ></p>
+              </div>
+
+              <button
+                id="menu-logout"
+                class="w-full text-left px-2.5 py-2 rounded-lg hover:bg-red-50 text-red-500 flex items-center gap-2"
+              >
+                <span>🚪</span>
+                <span>Salir</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <!-- MODAL AUTH -->
+      <div
+        id="auth-modal"
+        class="fixed inset-0 z-40 hidden items-center justify-center bg-black/40 backdrop-blur-sm"
+      >
+        <div
+          class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 relative"
+        >
+          <button
+            type="button"
+            id="btn-close-auth"
+            class="absolute top-3 right-3 text-slate-400 hover:text-slate-600"
+            aria-label="Cerrar"
+          >
+            ✕
+          </button>
+
+          <div class="mb-4">
+            <h2 class="text-lg font-semibold text-slate-800">
+              Tu cuenta en EuskoTrips
+            </h2>
+            <p class="text-xs text-slate-500 mt-1">
+              Crea una cuenta para guardar favoritos y recibir recomendaciones.
+            </p>
+          </div>
+
+          <!-- Tabs -->
+          <div
+            class="flex text-xs font-medium mb-4 border-b border-slate-200 rounded-t-xl overflow-hidden"
+          >
+            <button
+              type="button"
+              id="tab-login"
+              class="flex-1 py-2 text-center border-b-2 border-indigo-500 text-indigo-600"
+            >
+              Iniciar sesión
+            </button>
+            <button
+              type="button"
+              id="tab-register"
+              class="flex-1 py-2 text-center border-b-2 border-transparent text-slate-500 hover:text-slate-700"
+            >
+              Crear cuenta
+            </button>
+          </div>
+
+          <!-- Formulario -->
+          <form id="auth-form" class="space-y-3 text-sm">
+            <div>
+              <label
+                class="block text-xs font-semibold text-slate-600 mb-1"
+                for="auth-email"
+              >
+                Email
+              </label>
+              <input
+                type="email"
+                id="auth-email"
+                required
+                class="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-400"
+              />
+            </div>
+
+            <div>
+              <label
+                class="block text-xs font-semibold text-slate-600 mb-1"
+                for="auth-password"
+              >
+                Contraseña
+              </label>
+              <input
+                type="password"
+                id="auth-password"
+                required
+                class="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-400"
+              />
+            </div>
+
+            <div id="auth-name-wrapper" class="hidden">
+              <label
+                class="block text-xs font-semibold text-slate-600 mb-1"
+                for="auth-name"
+              >
+                Nombre (para mostrar)
+              </label>
+              <input
+                type="text"
+                id="auth-name"
+                class="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-400"
+              />
+            </div>
+
+            <button
+              id="auth-submit"
+              type="submit"
+              class="w-full rounded-xl bg-indigo-600 text-white font-semibold py-2.5 hover:bg-indigo-700 shadow-md shadow-indigo-200 text-sm"
+            >
+              Iniciar sesión
+            </button>
+
+            <div class="mt-3 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="h-px flex-1 bg-slate-200"></span>
+                <span class="text-[11px] uppercase tracking-wide text-slate-400">
+                  o continúa con
+                </span>
+                <span class="h-px flex-1 bg-slate-200"></span>
+              </div>
+
+              <button
+                type="button"
+                id="btn-github-login"
+                class="w-full rounded-xl border border-gray-300 bg-white text-gray-800 font-medium py-2
+                       hover:bg-gray-50 transition flex items-center justify-center gap-3 shadow-sm"
+              >
+                <svg viewBox="0 0 16 16" class="w-5 h-5 fill-gray-900">
+                  <path
+                    d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38
+                       0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13
+                       -.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66
+                       .07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95
+                       0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12
+                       0 0 .67-.21 2.2.82A7.62 7.62 0 0 1 8 3.13c.68 0 1.36.09 2 .27
+                       1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15
+                       0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48
+                       0 1.07-.01 1.93-.01 2.19 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8
+                       c0-4.42-3.58-8-8-8Z"
+                  />
+                </svg>
+              
+                <span>Entrar con GitHub</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <main
+        class="w-full bg-slate-50 rounded-3xl overflow-hidden flex flex-col md:flex-row"
+      >
+        <!-- Contenido principal -->
+        <section class="flex-1 p-6 md:p-10 flex flex-col gap-6 relative">
+          <!-- Cabecera -->
+          <header class="space-y-3">
+            <h1
+              class="text-4xl md:text-5xl font-extrabold tracking-tight text-indigo-600"
+            >
+              EuskoTrips
+            </h1>
+            <p class="text-slate-500 max-w-xl">
+              Plataforma inteligente de descubrimiento turístico para explorar
+              destinos, rutas, alojamientos y gastronomía en Euskadi.
+            </p>
+            <div
+              class="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white px-5 py-2 rounded-full text-sm font-medium shadow-md"
+            >
+              <span class="text-xs">●</span>
+              <span>Conectada a OpenData Euskadi + Elasticsearch</span>
+            </div>
+          </header>
+
+          <!-- Panel de búsqueda -->
+          <section
+            class="mt-4 bg-etPrimarySoft/70 border border-indigo-100 rounded-2xl p-4 md:p-5 flex flex-col gap-4"
+          >
+            <div class="flex flex-col md:flex-row md:items-end gap-4">
+              <!-- Texto libre -->
+              <div class="flex-1">
+                <label
+                  for="q"
+                  class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1"
+                  >Buscar</label
+                >
+                <input
+                  id="q"
+                  type="text"
+                  placeholder="Playa, museo, ruta de montaña, pintxos..."
+                  class="w-full rounded-xl border border-indigo-100 bg-white/90 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+                />
+              </div>
+
+              <!-- Tipo recurso -->
+              <div class="md:w-48">
+                <label
+                  for="tipo_recurso"
+                  class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1"
+                  >Tipo</label
+                >
+                <select
+                  id="tipo_recurso"
+                  class="w-full rounded-xl border border-indigo-100 bg-white/90 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+                >
+                  <option value="">Todos</option>
+                  <option value="destino">Destinos</option>
+                  <option value="ruta_paseo">Rutas y paseos</option>
+                  <option value="alojamiento_hotel">Alojamientos</option>
+                  <option value="restauracion">Restauración</option>
+                </select>
+              </div>
+
+              <!-- Categoría -->
+              <div class="md:w-48">
+                <label
+                  for="categoria"
+                  class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1"
+                  >Categoría</label
+                >
+                <select
+                  id="categoria"
+                  class="w-full rounded-xl border border-indigo-100 bg-white/90 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 disabled:bg-slate-100 disabled:text-slate-400"
+                  disabled
+                >
+                  <option value="">Todas</option>
+                </select>
+              </div>
+
+              <!-- Territorio -->
+              <div class="md:w-48">
+                <label
+                  for="territorio"
+                  class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1"
+                  >Territorio</label
+                >
+                <input
+                  id="territorio"
+                  type="text"
+                  placeholder="Bizkaia, Gipuzkoa, Álava…"
+                  class="w-full rounded-xl border border-indigo-100 bg-white/90 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+                />
+              </div>
+
+              <!-- Municipio -->
+              <div class="md:w-48">
+                <label
+                  for="municipio"
+                  class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1"
+                  >Municipio</label
+                >
+                <input
+                  id="municipio"
+                  type="text"
+                  placeholder="Bilbao, Donostia, Vitoria..."
+                  class="w-full rounded-xl border border-indigo-100 bg-white/90 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+                />
+              </div>
+            </div>
+
+            <div class="flex justify-between items-center gap-3">
+              <p
+                id="status"
+                class="text-xs text-slate-500 flex-1 overflow-hidden text-ellipsis whitespace-nowrap"
+              >
+                Listo para buscar destinos ✨
+              </p>
+              <button
+                id="searchBtn"
+                class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-md transition-shadow disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <span>Buscar</span>
+                <span id="loader" class="hidden animate-spin">⏳</span>
+              </button>
+            </div>
+          </section>
+
+          <!-- Resultados -->
+          <section class="mt-2 flex-1 flex flex-col">
+            <div class="flex items-center justify-between mb-2">
+              <h2
+                class="text-sm font-semibold text-slate-600 uppercase tracking-wide"
+              >
+                Resultados
+              </h2>
+              <span id="resultsCount" class="text-xs text-slate-400"></span>
+            </div>
+
+            <div
+              id="results"
+              class="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pb-4"
+            >
+              <!-- Tarjetas por JS -->
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const apiBase = "/api/destinos";
+
+      const qInput = document.getElementById("q");
+      const tipoInput = document.getElementById("tipo_recurso");
+      const territorioInput = document.getElementById("territorio");
+      const municipioInput = document.getElementById("municipio");
+      const categoriaInput = document.getElementById("categoria");
+      const statusEl = document.getElementById("status");
+      const resultsEl = document.getElementById("results");
+      const resultsCountEl = document.getElementById("resultsCount");
+      const searchBtn = document.getElementById("searchBtn");
+      const loaderEl = document.getElementById("loader");
+
+      // --- FAVORITOS STATE ---
+      let favoritosMap = new Map(); // destinoId -> favoritoRowId (postgres)
+      let viewMode = "search"; // "search" | "favorites" | "recs"
+
+      // --- MAPA DETALLE STATE ---
+      let poiMap = null;
+      let poiMarker = null;
+
+      function isFavorite(destinoId) {
+        return favoritosMap.has(destinoId);
+      }
+
+      function updateNavActive() {
+        const navSearch = document.getElementById("nav-search");
+        const navFavs = document.getElementById("nav-favs");
+        const navRecs = document.getElementById("nav-recs");
+        const all = [navSearch, navFavs, navRecs];
+
+        // Reset estado de todos los botones
+        all.forEach((btn) => {
+          if (!btn) return;
+          btn.classList.remove(
+            "bg-indigo-600",
+            "text-white",
+            "shadow-md",
+            "border-indigo-600",
+            "hover:bg-indigo-700"
+          );
+          btn.classList.add(
+            "bg-white/60",
+            "text-slate-600",
+            "border-transparent",
+            "hover:bg-white"
+          );
+        });
+
+        // Determinar activo
+        let active =
+          viewMode === "search"
+            ? navSearch
+            : viewMode === "favorites"
+            ? navFavs
+            : viewMode === "recs"
+            ? navRecs
+            : null;
+
+        // Aplicar estilos al activo
+        if (active) {
+          active.classList.remove(
+            "bg-white/60",
+            "text-slate-600",
+            "border-transparent",
+            "hover:bg-white"
+          );
+          active.classList.add(
+            "bg-indigo-600",
+            "text-white",
+            "shadow-md",
+            "border-indigo-600",
+            "hover:bg-indigo-700"
+          );
+        }
+      }
+
+      function setViewMode(mode) {
+        viewMode = mode;
+        updateNavActive();
+      }
+
+      async function loadFavoritos() {
+        favoritosMap.clear();
+        if (!currentUser || !currentUser.id) return;
+
+        try {
+          const res = await fetch(`/api/favoritos?userId=${currentUser.id}`);
+          if (!res.ok) return;
+          const data = await res.json();
+          data.forEach((f) => favoritosMap.set(f.destino_id, f.id));
+        } catch (e) {
+          console.error("Error cargando favoritos:", e);
+        }
+      }
+
+      async function toggleFavorite(item) {
+        if (!currentUser || !currentUser.id) {
+          alert("Inicia sesión para guardar favoritos.");
+          return;
+        }
+
+        try {
+          if (isFavorite(item.id)) {
+            const favRowId = favoritosMap.get(item.id);
+            await fetch(`/api/favoritos/${favRowId}`, { method: "DELETE" });
+            favoritosMap.delete(item.id);
+          } else {
+            const res = await fetch("/api/favoritos", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                userId: currentUser.id,
+                destinoId: item.id,
+              }),
+            });
+            const data = await res.json();
+            if (!data.alreadyExists) {
+              favoritosMap.set(item.id, data.id);
+            }
+          }
+
+          // refrescar vista actual según modo
+          if (viewMode === "favorites") {
+            await loadFavoritos();
+            await showFavoritos();
+          } else if (viewMode === "recs") {
+            await loadFavoritos();
+            await showRecommendations();
+          } else {
+            search();
+          }
+        } catch (e) {
+          console.error("Error toggle favorito:", e);
+          alert("No se pudo actualizar favorito.");
+        }
+      }
+
+      async function showFavoritos() {
+        if (!currentUser || !currentUser.id) {
+          alert("Inicia sesión para ver favoritos.");
+          return;
+        }
+
+        setLoading(true, "Cargando favoritos…");
+
+        try {
+          const res = await fetch(
+            `/api/favoritos/full?userId=${currentUser.id}`
+          );
+          if (!res.ok) throw new Error("Error cargando favoritos completos");
+          let data = await res.json(); // todos los favoritos
+
+          // --- FILTROS DESDE LA UI ---
+          const q = qInput.value.trim().toLowerCase();
+          const tipo = tipoInput.value;
+          const categoria = categoriaInput.value;
+          const territorio = territorioInput.value.trim().toLowerCase();
+          const municipio = municipioInput.value.trim().toLowerCase();
+
+          data = data.filter((item) => {
+            // texto libre en nombre + descripción
+            if (q) {
+              const texto =
+                (item.nombre || "") + " " + (item.descripcion || "");
+              if (!texto.toLowerCase().includes(q)) return false;
+            }
+
+            // tipo recurso exacto
+            if (tipo && item.tipo_recurso !== tipo) return false;
+
+            // categoría (item.categoria puede ser string o array)
+            if (categoria) {
+              const cats = Array.isArray(item.categoria)
+                ? item.categoria
+                : item.categoria
+                ? [item.categoria]
+                : [];
+              if (!cats.includes(categoria)) return false;
+            }
+
+            // territorio
+            if (territorio) {
+              const terr = (item.territorio || "").toLowerCase();
+              if (!terr.includes(territorio)) return false;
+            }
+
+            // municipio
+            if (municipio) {
+              const mun = (item.municipio || "").toLowerCase();
+              if (!mun.includes(municipio)) return false;
+            }
+
+            return true;
+          });
+
+          resultsEl.innerHTML = "";
+          if (!data || data.length === 0) {
+            resultsEl.innerHTML =
+              '<p class="text-sm text-slate-500 col-span-full">Aún no hay favoritos que cumplan estos filtros ❤️</p>';
+            resultsCountEl.textContent = "0 favoritos";
+          } else {
+            data.forEach((item) => resultsEl.appendChild(createCard(item)));
+            resultsCountEl.textContent =
+              data.length + (data.length === 1 ? " favorito" : " favoritos");
+          }
+
+          statusEl.textContent = "Favoritos filtrados según tus criterios ✔️";
+        } catch (e) {
+          console.error(e);
+          statusEl.textContent = "Error cargando favoritos.";
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      async function showRecommendations() {
+        setLoading(true, "Cargando recomendaciones…");
+
+        try {
+          let url = "/api/recomendador/rank";
+          if (currentUser && currentUser.id) {
+            const sep = url.includes("?") ? "&" : "?";
+            url += `${sep}usuarioId=${currentUser.id}`;
+          }
+
+          const res = await fetch(url);
+          if (!res.ok) throw new Error("Error llamando al recomendador");
+
+          const data = await res.json();
+          const mode = data.mode || "generic";
+          const results = data.results || [];
+
+          await loadFavoritos();
+
+          resultsEl.innerHTML = "";
+
+          if (!results.length) {
+            resultsEl.innerHTML =
+              '<p class="text-sm text-slate-500 col-span-full">No hay recomendaciones disponibles ahora mismo.</p>';
+            resultsCountEl.textContent = "0 recomendaciones";
+          } else {
+            results.forEach((item) => {
+              resultsEl.appendChild(createCard(item));
+            });
+            resultsCountEl.textContent =
+              results.length +
+              (results.length === 1 ? " recomendación" : " recomendaciones");
+          }
+
+          if (mode === "personalized") {
+            statusEl.textContent =
+              "Mostrando recomendaciones personalizadas según tus favoritos 🧭";
+          } else if (
+            mode === "no_favorites" ||
+            mode === "no_favorites_docs"
+          ) {
+            statusEl.textContent =
+              "Aún no tienes suficientes favoritos, mostrando sugerencias genéricas ✨";
+          } else {
+            statusEl.textContent = "Mostrando sugerencias genéricas ✨";
+          }
+        } catch (e) {
+          console.error(e);
+          statusEl.textContent = "Error al cargar recomendaciones.";
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      function setLoading(isLoading, msg) {
+        searchBtn.disabled = isLoading;
+        loaderEl.classList.toggle("hidden", !isLoading);
+        if (msg) statusEl.textContent = msg;
+      }
+
+      function truncate(text, max) {
+        if (!text) return "";
+        return text.length > max ? text.slice(0, max) + "…" : text;
+      }
+
+      function mapTipoRecurso(tipo) {
+        switch (tipo) {
+          case "alojamiento_hotel":
+            return "Alojamiento";
+          case "ruta_paseo":
+            return "Ruta / paseo";
+          case "restauracion":
+            return "Restauración";
+          case "destino":
+            return "Destino";
+          default:
+            return tipo || "Recurso turístico";
+        }
+      }
+
+      function showPoiDetail(item) {
+        const modal = document.getElementById("poi-modal");
+        const titleEl = document.getElementById("poi-modal-title");
+        const subtitleEl = document.getElementById("poi-modal-subtitle");
+        const descEl = document.getElementById("poi-modal-descripcion");
+        const chipEl = document.getElementById("poi-modal-chip");
+        const coordsEl = document.getElementById("poi-modal-coords");
+        const mapWrapper = document.getElementById("poi-modal-map-wrapper");
+        const metaDl = document.getElementById("poi-modal-metadata");
+
+        const raw = item.raw_properties || item.raw || {};
+
+        const tipoLabel = mapTipoRecurso(item.tipo_recurso);
+        const municipio = item.municipio || "Municipio desconocido";
+        const territorio = item.territorio || "";
+        const dataset =
+          item.source_dataset === "destinos_turisticos"
+            ? "Destinos turísticos"
+            : item.source_dataset === "rutas_y_paseos"
+            ? "Rutas y paseos"
+            : item.source_dataset === "hoteles"
+            ? "Hoteles"
+            : item.source_dataset === "restaurantes"
+            ? "Restauración"
+            : item.source_dataset || "OpenData Euskadi";
+
+        titleEl.textContent = item.nombre || "Sin nombre";
+        chipEl.textContent = tipoLabel || "Recurso turístico";
+        subtitleEl.textContent = `${municipio}${
+          territorio ? " · " + territorio : ""
+        } · ${dataset}`;
+
+        // Descripción: lo mejor que tengamos
+        const fullDesc =
+          (typeof raw.documentdescription === "string" &&
+            raw.documentdescription.trim()) ||
+          item.descripcion ||
+          "Sin descripción disponible para este recurso.";
+        descEl.textContent = fullDesc;
+
+        // Botón / enlace "Saber más" -> friendlyurl / physicalurl
+        const fichaUrl = raw.friendlyurl || raw.physicalurl || null;
+        const descContainer = descEl.parentElement;
+        let moreLink = descContainer.querySelector(".poi-more-link");
+
+        if (fichaUrl) {
+          if (!moreLink) {
+            moreLink = document.createElement("a");
+            moreLink.className =
+              "poi-more-link inline-flex items-center gap-1 mt-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700";
+            moreLink.target = "_blank";
+            moreLink.rel = "noopener noreferrer";
+            moreLink.innerHTML =
+              'Saber más en turismo.euskadi.eus<span class="text-[11px]">↗</span>';
+            descContainer.appendChild(moreLink);
+          }
+          moreLink.href = fichaUrl;
+        } else if (moreLink) {
+          moreLink.remove();
+        }
+      
+        const coords = item.location || item.coords || null;
+      
+        if (
+          coords &&
+          typeof coords.lat === "number" &&
+          typeof coords.lon === "number"
+        ) {
+          mapWrapper.classList.remove("hidden");
+          coordsEl.textContent = `${coords.lat.toFixed(5)}, ${coords.lon.toFixed(5)}`;
+        
+          const mapDiv = document.getElementById("poi-modal-map");
+        
+          if (!poiMap) {
+            poiMap = L.map(mapDiv).setView([coords.lat, coords.lon], 13);
+          
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+              maxZoom: 19,
+              attribution: "&copy; OpenStreetMap contributors",
+            }).addTo(poiMap);
+          
+            poiMarker = L.marker([coords.lat, coords.lon]).addTo(poiMap);
+          } else {
+            poiMap.setView([coords.lat, coords.lon], 13);
+            if (poiMarker) {
+              poiMarker.setLatLng([coords.lat, coords.lon]);
+            } else {
+              poiMarker = L.marker([coords.lat, coords.lon]).addTo(poiMap);
+            }
+            setTimeout(() => {
+              poiMap.invalidateSize();
+            }, 200);
+          }
+        } else {
+          mapWrapper.classList.add("hidden");
+        }
+      
+        // Metadatos: solo los útiles para el usuario
+        metaDl.innerHTML = "";
+        const VISIBLE_KEYS = {
+          templatetype: "Tipo de recurso",
+          marks: "Etiquetas",
+          municipality: "Municipio",
+          territory: "Territorio",
+          country: "País",
+        };
+      
+        let hasMetadata = false;
+      
+        Object.entries(VISIBLE_KEYS).forEach(([key, label]) => {
+          const value = raw[key];
+          if (value === undefined || value === null || value === "") return;
+        
+          hasMetadata = true;
+        
+          const dt = document.createElement("dt");
+          dt.className = "font-semibold text-slate-600";
+          dt.textContent = label;
+        
+          const dd = document.createElement("dd");
+          dd.className = "text-slate-500 break-all";
+          dd.textContent = String(value);
+        
+          metaDl.appendChild(dt);
+          metaDl.appendChild(dd);
+        });
+      
+        if (!hasMetadata) {
+          const dt = document.createElement("dt");
+          dt.className = "font-semibold text-slate-600";
+          dt.textContent = "Información adicional";
+        
+          const dd = document.createElement("dd");
+          dd.className = "text-slate-500";
+          dd.textContent = "No hay metadatos adicionales para este recurso.";
+        
+          metaDl.appendChild(dt);
+          metaDl.appendChild(dd);
+        }
+      
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+      }
+
+      function createCard(item) {
+        const categoriaLabel = Array.isArray(item.categoria)
+          ? item.categoria.join(" · ")
+          : item.categoria;
+        const tipoLabel = mapTipoRecurso(item.tipo_recurso);
+        const municipio = item.municipio || "Municipio desconocido";
+        const territorio = item.territorio || "";
+        const dataset =
+          item.source_dataset === "destinos_turisticos"
+            ? "Destinos turísticos"
+            : item.source_dataset === "rutas_y_paseos"
+            ? "Rutas y paseos"
+            : item.source_dataset === "hoteles"
+            ? "Hoteles"
+            : item.source_dataset === "restaurantes"
+            ? "Restauración"
+            : item.source_dataset || "OpenData Euskadi";
+
+        const coords =
+          item.location || item.coords ? item.location || item.coords : null;
+
+        const wrapper = document.createElement("article");
+        wrapper.className =
+          "relative bg-white rounded-2xl border border-indigo-50 shadow-sm hover:shadow-md transition-shadow p-4 flex flex-col gap-2 cursor-pointer";
+
+        wrapper.innerHTML = `
+          <div class="flex items-start justify-between gap-2 pr-6">
+            <h3 class="text-sm font-semibold text-slate-800 leading-snug">
+              ${item.nombre || "Sin nombre"}
+            </h3>
+            <span class="shrink-0 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-100 text-indigo-700">
+              ${tipoLabel}
+            </span>
+          </div>
+        
+          ${
+            categoriaLabel
+              ? `<span class="inline-block px-2 py-0.5 text-[11px] rounded-full bg-violet-100 text-violet-700 font-medium">
+                   ${categoriaLabel}
+                 </span>`
+              : ``
+          }
+               
+          <p class="text-xs text-slate-500">
+            ${item.descripcion || "Sin descripción disponible."}
+          </p>
+        
+          <div class="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-slate-500">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100">
+              <span>📍</span>
+              <span>${municipio}${territorio ? " · " + territorio : ""}</span>
+            </span>
+          
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100">
+              <span>📚</span>
+              <span>${dataset}</span>
+            </span>
+          
+            ${
+              coords
+                ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100">
+                     <span>🗺️</span>
+                     <span>${coords.lat?.toFixed?.(3) ?? ""}, ${
+                    coords.lon?.toFixed?.(3) ?? ""
+                  }</span>
+                   </span>`
+                : ""
+            }
+          </div>
+        `;
+
+        // Botón de favorito, fijado arriba a la derecha dentro de la tarjeta
+        const favBtn = document.createElement("button");
+        favBtn.className =
+          "favorite-btn text-xl select-none absolute top-3 right-3";
+        favBtn.title = "Añadir/Quitar favorito";
+        favBtn.textContent = isFavorite(item.id) ? "❤️" : "🤍";
+        favBtn.onclick = (e) => {
+          e.stopPropagation(); // que no abra el modal
+          toggleFavorite(item);
+        };
+
+        wrapper.appendChild(favBtn);
+
+        // Clic en la tarjeta → detalle
+        wrapper.addEventListener("click", () => showPoiDetail(item));
+
+        return wrapper;
+      }
+
+      async function search() {
+        setViewMode("search");
+
+        const params = new URLSearchParams();
+        const q = qInput.value.trim();
+        const tipo = tipoInput.value;
+        const territorio = territorioInput.value.trim();
+        const municipio = municipioInput.value.trim();
+        const categoria = categoriaInput.value;
+
+        if (q) params.set("q", q);
+        if (tipo) params.set("tipo_recurso", tipo);
+        if (territorio) params.set("territorio", territorio);
+        if (municipio) params.set("municipio", municipio);
+        if (categoria) params.set("categoria", categoria);
+
+        params.set("size", "30");
+
+        const url = apiBase + (params.toString() ? `?${params.toString()}` : "");
+        setLoading(true, "Buscando destinos en EuskoTrips…");
+
+        try {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error("Error en la llamada al gateway");
+          const data = await res.json();
+
+          await loadFavoritos();
+
+          resultsEl.innerHTML = "";
+          if (!data || data.length === 0) {
+            resultsEl.innerHTML =
+              '<p class="text-sm text-slate-500 col-span-full">No se han encontrado resultados para estos filtros.</p>';
+            resultsCountEl.textContent = "0 resultados";
+          } else {
+            data.forEach((item) => resultsEl.appendChild(createCard(item)));
+            resultsCountEl.textContent =
+              data.length + (data.length === 1 ? " resultado" : " resultados");
+          }
+
+          statusEl.textContent = "Búsqueda completada correctamente ✔️";
+        } catch (err) {
+          console.error(err);
+          statusEl.textContent =
+            "Ha ocurrido un error al buscar. Revisa que el backend esté levantado.";
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      async function loadCategoriasForTipo(tipo) {
+        categoriaInput.innerHTML = '<option value="">Todas</option>';
+        categoriaInput.disabled = true;
+        if (!tipo) return;
+
+        try {
+          const res = await fetch(
+            `/api/categorias?tipo_recurso=${encodeURIComponent(tipo)}`
+          );
+          if (!res.ok) throw new Error("Error al cargar categorías");
+          const categorias = await res.json();
+          if (!categorias || categorias.length === 0) return;
+
+          categorias.forEach((cat) => {
+            const opt = document.createElement("option");
+            opt.value = cat;
+            opt.textContent = cat;
+            categoriaInput.appendChild(opt);
+          });
+
+          categoriaInput.disabled = false;
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      // --- AUTH STATE ---
+      const STORAGE_USER_KEY = "euskoTripsUser";
+      const STORAGE_TOKEN_KEY = "euskoTripsToken";
+
+      let currentUser = null;
+      let authToken = null;
+
+      function loadUserFromStorage() {
+        try {
+          const rawUser = localStorage.getItem(STORAGE_USER_KEY);
+          const rawToken = localStorage.getItem(STORAGE_TOKEN_KEY);
+
+          if (rawUser) currentUser = JSON.parse(rawUser);
+          if (rawToken) authToken = rawToken;
+        } catch (e) {
+          console.error("Error leyendo usuario/token de localStorage:", e);
+        }
+      }
+
+      function saveUserToStorage() {
+        if (currentUser) {
+          localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(currentUser));
+        } else {
+          localStorage.removeItem(STORAGE_USER_KEY);
+        }
+
+        if (authToken) {
+          localStorage.setItem(STORAGE_TOKEN_KEY, authToken);
+        } else {
+          localStorage.removeItem(STORAGE_TOKEN_KEY);
+        }
+      }
+
+      function updateAuthUI() {
+        const btnOpen = document.getElementById("btn-open-auth");
+        const userNav = document.getElementById("auth-user-nav");
+        const usernameSpan = document.getElementById("auth-username");
+        const initialEl = document.getElementById("user-initial");
+        const shortNameEl = document.getElementById("user-short-name");
+
+        if (!btnOpen || !userNav) return;
+
+        if (currentUser) {
+          btnOpen.classList.add("hidden");
+          userNav.classList.remove("hidden");
+          userNav.classList.add("flex");
+
+          const label = currentUser.name || currentUser.email;
+          usernameSpan.textContent = label;
+          if (initialEl)
+            initialEl.textContent = (label?.[0] || "U").toUpperCase();
+          if (shortNameEl) shortNameEl.textContent = label;
+        } else {
+          btnOpen.classList.remove("hidden");
+          userNav.classList.add("hidden");
+          userNav.classList.remove("flex");
+        }
+      }
+
+      async function apiLogin(email, password) {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || "Error en login");
+        return data.user;
+      }
+
+      async function apiRegister(email, name, password) {
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, name, password }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok)
+          throw new Error(data.error || "Error en registro");
+        return data.user;
+      }
+
+      // Eventos
+      document.addEventListener("DOMContentLoaded", async () => {
+        // 1) Mirar si venimos de GitHub con un token en la URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const githubToken = urlParams.get("githubToken");
+
+        if (githubToken) {
+          authToken = githubToken;
+          saveUserToStorage();
+
+          // Limpiar el parámetro de la URL sin recargar
+          urlParams.delete("githubToken");
+          const newUrl =
+            window.location.pathname +
+            (urlParams.toString() ? "?" + urlParams.toString() : "");
+          window.history.replaceState({}, "", newUrl);
+        }
+
+        // 2) Cargar usuario/token de localStorage
+        loadUserFromStorage();
+
+        // 3) Si tenemos token pero no usuario, preguntar al backend
+        if (!currentUser && authToken) {
+          try {
+            const res = await fetch("/api/auth/me", {
+              headers: { Authorization: `Bearer ${authToken}` },
+            });
+            const data = await res.json();
+            if (data.ok && data.user) {
+              currentUser = data.user;
+              saveUserToStorage();
+            }
+          } catch (e) {
+            console.error("Error recuperando usuario desde token:", e);
+          }
+        }
+
+        updateAuthUI();
+        updateNavActive();
+        search();
+
+        // buscador
+        searchBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          search();
+        });
+
+        qInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            search();
+          }
+        });
+
+        tipoInput.addEventListener("change", () => {
+          categoriaInput.value = "";
+          loadCategoriasForTipo(tipoInput.value);
+        });
+
+        // navbar
+        const navSearch = document.getElementById("nav-search");
+        const navFavs = document.getElementById("nav-favs");
+        const navRecs = document.getElementById("nav-recs");
+
+        navSearch?.addEventListener("click", () => {
+          setViewMode("search");
+          search();
+          statusEl.textContent = "Volviendo a resultados ✨";
+          qInput.focus();
+        });
+
+        navFavs?.addEventListener("click", async () => {
+          if (!currentUser) {
+            alert("Inicia sesión para ver favoritos.");
+            return;
+          }
+          setViewMode("favorites");
+          await loadFavoritos();
+          await showFavoritos();
+          statusEl.textContent = "Mostrando tus favoritos ❤️";
+        });
+
+        navRecs?.addEventListener("click", async () => {
+          setViewMode("recs");
+          await showRecommendations();
+        });
+
+        // user chip dropdown
+        const userChip = document.getElementById("user-chip");
+        const userMenu = document.getElementById("user-menu");
+        const menuLogout = document.getElementById("menu-logout");
+
+        userChip?.addEventListener("click", (e) => {
+          e.stopPropagation();
+          userMenu.classList.toggle("hidden");
+        });
+
+        document.addEventListener("click", () => {
+          userMenu?.classList.add("hidden");
+        });
+
+        menuLogout?.addEventListener("click", () => {
+          currentUser = null;
+          authToken = null;
+          saveUserToStorage();
+          favoritosMap.clear();
+          updateAuthUI();
+          setViewMode("search");
+          search();
+          userMenu.classList.add("hidden");
+        });
+
+        // modal auth
+        const modal = document.getElementById("auth-modal");
+        const btnOpen = document.getElementById("btn-open-auth");
+        const btnClose = document.getElementById("btn-close-auth");
+        const tabLogin = document.getElementById("tab-login");
+        const tabRegister = document.getElementById("tab-register");
+        const form = document.getElementById("auth-form");
+        const emailInput = document.getElementById("auth-email");
+        const passInput = document.getElementById("auth-password");
+        const nameInput = document.getElementById("auth-name");
+        const nameWrapper = document.getElementById("auth-name-wrapper");
+        const submitBtn = document.getElementById("auth-submit");
+        const btnGithubLogin = document.getElementById("btn-github-login");
+
+        let mode = "login";
+
+        function openModal(newMode = "login") {
+          mode = newMode;
+          modal.classList.remove("hidden");
+          modal.classList.add("flex");
+          if (mode === "login") {
+            tabLogin.classList.add("border-indigo-500", "text-indigo-600");
+            tabRegister.classList.remove(
+              "border-indigo-500",
+              "text-indigo-600"
+            );
+            tabRegister.classList.add("text-slate-500");
+            nameWrapper.classList.add("hidden");
+            submitBtn.textContent = "Iniciar sesión";
+          } else {
+            tabRegister.classList.add("border-indigo-500", "text-indigo-600");
+            tabLogin.classList.remove("border-indigo-500", "text-indigo-600");
+            tabLogin.classList.add("text-slate-500");
+            nameWrapper.classList.remove("hidden");
+            submitBtn.textContent = "Crear cuenta";
+          }
+        }
+
+        function closeModal() {
+          modal.classList.add("hidden");
+          modal.classList.remove("flex");
+          form.reset();
+        }
+
+        btnOpen?.addEventListener("click", () => openModal("login"));
+        btnClose?.addEventListener("click", closeModal);
+        tabLogin?.addEventListener("click", () => openModal("login"));
+        tabRegister?.addEventListener("click", () => openModal("register"));
+
+        form?.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const email = emailInput.value.trim();
+          const password = passInput.value.trim();
+          const name = nameInput.value.trim();
+          if (!email || !password) return;
+
+          try {
+            let user;
+            if (mode === "login") user = await apiLogin(email, password);
+            else user = await apiRegister(email, name, password);
+
+            currentUser = user;
+            saveUserToStorage();
+            updateAuthUI();
+
+            await loadFavoritos();
+            search();
+
+            closeModal();
+          } catch (err) {
+            alert(err.message);
+            console.error(err);
+          }
+        });
+
+        // Botón "Entrar con GitHub"
+        btnGithubLogin?.addEventListener("click", () => {
+          window.location.href = "/auth/github/login";
+        });
+
+        // --- Modal detalle POI: cierre ---
+        const poiModal = document.getElementById("poi-modal");
+        const poiModalClose = document.getElementById("poi-modal-close");
+
+        poiModalClose?.addEventListener("click", () => {
+          poiModal.classList.add("hidden");
+          poiModal.classList.remove("flex");
+        });
+
+        poiModal?.addEventListener("click", (e) => {
+          if (e.target === poiModal) {
+            poiModal.classList.add("hidden");
+            poiModal.classList.remove("flex");
+          }
+        });
+      });
+    </script>
+
+    <!-- Modal Detalle POI -->
+    <div
+      id="poi-modal"
+      class="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-sm hidden items-center justify-center px-4"
+    >
+      <div
+        class="w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]"
+      >
+        <!-- Header -->
+        <div class="px-5 py-4 border-b border-slate-100 flex items-start gap-3">
+          <div class="flex-1">
+            <p
+              id="poi-modal-chip"
+              class="inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 text-[11px] font-semibold mb-1"
+            >
+              Detalle
+            </p>
+            <h2
+              id="poi-modal-title"
+              class="text-lg font-semibold text-slate-900 leading-snug"
+            >
+              Título del POI
+            </h2>
+            <p
+              id="poi-modal-subtitle"
+              class="text-xs text-slate-500 mt-1"
+            >
+              Municipio · Territorio · Dataset
+            </p>
+          </div>
+
+          <button
+            id="poi-modal-close"
+            class="rounded-full w-8 h-8 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            aria-label="Cerrar"
+          >
+            ✕
+          </button>
+        </div>
+
+        <!-- Contenido scrollable -->
+        <div class="px-5 py-4 space-y-4 overflow-y-auto">
+          <!-- Descripción -->
+          <div>
+            <h3 class="text-xs font-semibold text-slate-500 mb-1">
+              Descripción
+            </h3>
+            <p
+              id="poi-modal-descripcion"
+              class="text-sm text-slate-700 leading-relaxed"
+            >
+              ...
+            </p>
+          </div>
+
+          <!-- Mapa -->
+          <div id="poi-modal-map-wrapper" class="space-y-2">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-semibold text-slate-500">
+                Ubicación
+              </h3>
+              <p
+                id="poi-modal-coords"
+                class="text-[11px] text-slate-500"
+              >
+                lat, lon
+              </p>
+            </div>
+            <div
+              id="poi-modal-map"
+              class="w-full rounded-xl border border-slate-200 h-56"
+            ></div>
+          </div>
+
+          <!-- Metadatos -->
+          <div>
+            <h3 class="text-xs font-semibold text-slate-500 mb-2">
+              Metadatos de OpenData Euskadi
+            </h3>
+            <dl
+              id="poi-modal-metadata"
+              class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-[11px]"
+            ></dl>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

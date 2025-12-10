@@ -1,0 +1,17 @@
+# Entornos locales
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Archivos de configuración locales
+.env
+
+# Archivos que no necesitas meter en la imagen
+Dockerfile
+.dockerignore
+
+# Si algún día guardas datos descargados localmente
+data/
+*.csv
+*.json
